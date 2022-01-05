@@ -18,6 +18,9 @@ module.exports.update = (data) => {
 
 module.exports.remove = (id) => {
   const todoItemIndex = list.findIndex(item => item.id === id)
+  if (todoItemIndex === -1) {
+    throw new Error('未找到删除的id')
+  }
   list.splice(todoItemIndex, 1)
   return list;
 }

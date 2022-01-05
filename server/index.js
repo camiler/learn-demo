@@ -6,7 +6,10 @@ const listener = (req, res) => {
   const url = URL.parse(req.url)
   const {pathname, query} = url;
   const params = new URLSearchParams(url.query)
-  req.params = params;
+  req.params = {};
+  for (const [name, value] of params) {
+    req.params[name] = value
+  }
   
   const apiHandler = APIMapping[req.method][url.pathname]
   try {
