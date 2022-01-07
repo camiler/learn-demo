@@ -32,22 +32,32 @@ module.exports = {
     '/': (req, res) => {
       resRender(res, "Welcome to the homepage!")
     },
-    '/list': (req, res) => {
-      resJson(res, get())
+    '/list': async (req, res) => {
+      try {
+        const data = await get()
+        resJson(res, data)
+      } catch (err) {
+        resJsonError(res, err)
+      }
     }
   },
   POST: {
     '/todo': (req, res) => {
-      reqCallback(req, (data) => {
-        resJson(res, add(data))
+      reqCallback(req, async (data) => {
+        try {
+          const list = await add(data)
+          resJson(res, list)
+        } catch (err) {
+          resJsonError(res, err)
+        }
       })
     }
   },
   PUT: {
     '/todo': (req, res) => {
-      reqCallback(req, data => {
+      reqCallback(req, async data => {
         try {
-          const list = update(JSON.parse(data))
+          const list = await update(JSON.parse(data))
           resJson(res, list)
         } catch (err) {
           resJsonError(res, err)
@@ -56,9 +66,9 @@ module.exports = {
     }
   },
   DELETE: {
-    '/list': (req, res) => {
+    '/list': async (req, res) => {
       try {
-        const list = remove(req.params.id)
+        const list = await remove(req.params.id)
         resJson(res, list)
       } catch (err) {
         resJsonError(res, err)
