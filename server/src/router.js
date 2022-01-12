@@ -1,4 +1,4 @@
-const {add, update, remove, get} = require('./model')
+const {add, update, remove, getList} = require('./model')
 
 const reqCallback = (req, callback) => {
   let data = null;
@@ -6,7 +6,7 @@ const reqCallback = (req, callback) => {
     data = d;
   })
   req.on('end', () => {
-    callback(data.toString())
+    callback(JSON.parse(data.toString()))
   })
 }
 
@@ -20,11 +20,11 @@ const resRender = (res, render) => {
   res.end(render);
 }
 
-const resJsonError = (res, err) => {
-  res.writeHead(500, err, {
+const resJsonError = (res, err, code = 500) => {
+  res.writeHead(code, err, {
     'Content-Type': 'application/json'
   });
-  res.end(JSON.stringify({code: 500, message: err.message}))
+  res.end(JSON.stringify({code, message: err.message}))
 }
 
 module.exports = {
@@ -34,8 +34,9 @@ module.exports = {
     },
     '/list': async (req, res) => {
       try {
-        const data = await get()
-        resJson(res, data)
+        getList(req.params, (docs) => {
+          resJson(res, docs)
+        })
       } catch (err) {
         resJsonError(res, err)
       }
@@ -45,8 +46,12 @@ module.exports = {
     '/todo': (req, res) => {
       reqCallback(req, async (data) => {
         try {
-          const list = await add(data)
-          resJson(res, list)
+          if (!data.title) {
+            return resJsonError(res, new Error('title不能为空'), 400)
+          }
+          add(data, (docs) => {
+            resJson(res, docs)
+          })
         } catch (err) {
           resJsonError(res, err)
         }
@@ -57,8 +62,9 @@ module.exports = {
     '/todo': (req, res) => {
       reqCallback(req, async data => {
         try {
-          const list = await update(JSON.parse(data))
-          resJson(res, list)
+          update(data, (docs) => {
+            resJson(res, docs)
+          })
         } catch (err) {
           resJsonError(res, err)
         }
@@ -68,8 +74,9 @@ module.exports = {
   DELETE: {
     '/list': async (req, res) => {
       try {
-        const list = await remove(req.params.id)
-        resJson(res, list)
+        remove(req.params.id, (docs) => {
+          resJson(res, docs)
+        })
       } catch (err) {
         resJsonError(res, err)
       }

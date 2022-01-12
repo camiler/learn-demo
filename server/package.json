@@ -10,6 +10,8 @@
   "author": "Lyue",
   "license": "MIT",
   "dependencies": {
+    "@mysql/xdevapi": "8.0.27",
+    "mysql": "^2.18.1",
     "uuid": "^8.3.2"
   }
 }

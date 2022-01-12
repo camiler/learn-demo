@@ -1,51 +1,67 @@
 const uuid = require('uuid')
-const fs = require('fs/promises')
+const { get, TABLE_TODO } = require('./db')
 
-const FS_NAME = 'todo.json'
+const getDataById = (id, callback) => {
+  get().query(`SELECT * FROM ${TABLE_TODO} WHERE id=${id}`, (err, result) => {
+    if (err) throw err
+    callback(result)
+  })
+}
+module.exports.add = async (data, callback) => {
+  const time = new Date()
+  const values = [data.title, data.description || '', data.creator || '', time]
+  get().query(`INSERT INTO ${TABLE_TODO} (title, description, creator, createTime) VALUES(?, ?, ?, ?)`, values, (err, docs) => {
+    if (err) throw err
+    getDataById(docs.insertId, callback)
+  })
+}
 
-const getFileData = async () => {
-  try {
-    const f = await fs.readFile(FS_NAME);
-    const list = JSON.parse(f.toString());
-    return list;
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      return []
+module.exports.update = async (data, callback) => {
+  const setArr = []
+  for (let key in data) {
+    if (data[key] && key !== 'id') {
+      setArr.push(`${key}='${data[key]}'`)
     }
-    throw err;
   }
+  const setStr = setArr.join(', ')
+  get().query(`UPDATE ${TABLE_TODO} SET ${setStr} WHERE id=${data.id}`, (err, docs) => {
+    if (err) throw err
+    getDataById(data.id, callback)
+  })
 }
 
-module.exports.add = async (data) => {
-  const list = await getFileData()
-  const d = {...JSON.parse(data), id: uuid.v4()}
-  list.push(d)
-  await fs.writeFile(FS_NAME, JSON.stringify(list))
-  return list;
+module.exports.remove = async (id, callback) => {
+  get().query(`DELETE FROM ${TABLE_TODO} WHERE id=${id}`, (err, docs) => {
+    if (err) throw err
+    callback(docs.affectedRows === 1)
+  })
 }
 
-module.exports.update = async (data) => {
-  const list = await getFileData()
-  const todoItemIndex = list.findIndex(item => item.id === data.id)
-  if (todoItemIndex === -1) {
-    throw new Error('未找到更新的id')
+module.exports.getList = async (params, callback) => {
+  const { pageNo = 1, pageSize = 10, status, keyword } = params
+  let queryStr = ''
+  if (keyword) {
+    queryStr = ` WHERE title LIKE '%${keyword}%' OR description LIKE '%${keyword}%'`
   }
-  list[todoItemIndex] = data;
-  await fs.writeFile(FS_NAME, JSON.stringify(list))
-  return list;
-}
-
-module.exports.remove = async (id) => {
-  const list = await getFileData()
-  const todoItemIndex = list.findIndex(item => item.id === id)
-  if (todoItemIndex === -1) {
-    throw new Error('未找到删除的id')
+  if (status) {
+    if (queryStr) {
+      queryStr = `${queryStr} AND status=${status}`
+    } else {
+      queryStr = ` WHERE status=${status}`
+    }
   }
-  list.splice(todoItemIndex, 1)
-  await fs.writeFile(FS_NAME, JSON.stringify(list))
-  return list;
-}
-
-module.exports.get = async () => {
-  return await getFileData()
+  const limitMin = pageSize * (pageNo - 1)
+  const limitMax = pageSize * pageNo
+  get().query(`SELECT SQL_CALC_FOUND_ROWS * FROM ${TABLE_TODO}${queryStr} ORDER BY updateTime LIMIT ${limitMin},${limitMax}`, (err, docs) => {
+    if (err) throw err
+    get().query('SELECT FOUND_ROWS()', (err, count) => {
+      if (err) throw err
+      callback({
+        pageSize,
+        pageNo,
+        total: count[0]['FOUND_ROWS()'],
+        record: docs
+      })
+    })
+  })
 }
